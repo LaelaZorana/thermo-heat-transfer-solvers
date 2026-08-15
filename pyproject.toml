@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thermohx"
+version = "0.1.0"
+description = "Validated thermodynamics and heat transfer solvers (cycles, fins, heat exchangers, transient conduction, convection)"
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "matplotlib", "CoolProp"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
