@@ -26,7 +26,8 @@ ax.plot(*isobar(4 * MPa, st["4"].s, st["5"].s), "orange", lw=2, label="reheat 4 
 ax.plot([st["5"].s / 1e3, st["6"].s / 1e3], [st["5"].T - 273.15, st["6"].T - 273.15], "b", lw=2, label="turbines")
 ax.plot(*isobar(10e3, st["6"].s, st["1"].s), "g", lw=2, label="condenser 10 kPa")
 for k, s in st.items():
-    ax.annotate(k, (s.s / 1e3, s.T - 273.15), textcoords="offset points", xytext=(5, 5))
+    dx, dy = (-12, -2) if k == "2" else (5, 5)
+    ax.annotate(k, (s.s / 1e3, s.T - 273.15), textcoords="offset points", xytext=(dx, dy))
 ax.set_xlabel("s [kJ/kg K]"); ax.set_ylabel("T [C]")
 ax.set_title(f"Ideal reheat Rankine, eta_th = {r['eta_th']*100:.1f} percent, x_exit = {r['x_turbine_exit']:.3f}")
 ax.legend(loc="upper left"); ax.grid(alpha=0.3)

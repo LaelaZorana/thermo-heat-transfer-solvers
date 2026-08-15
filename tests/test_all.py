@@ -81,12 +81,12 @@ def test_fin_efficiency_closed_form():
 
 def test_rectangular_fin_hand_case():
     # Aluminum fin k = 180, w = 1 m, t = 3 mm, L = 30 mm, h = 25, theta_b = 60 K.
-    # m = sqrt(hP/kAc) = sqrt(25*2*(1.003)/(180*0.003)) = 9.636 1/m, mL = 0.2891,
-    # eta (adiabatic) = tanh(0.2891)/0.2891 = 0.9729,
+    # m = sqrt(hP/kAc) = sqrt(25*2*(1.003)/(180*0.003)) = 9.6370 1/m, mL = 0.28911,
+    # eta (adiabatic) = tanh(0.28911)/0.28911 = 0.9730,
     # q = sqrt(hPkAc) theta_b tanh(mL) = sqrt(25*2.006*180*0.003)*60*0.2813
-    #   = 5.203*60*0.2813 = 87.8 W per m of width.
+    #   = 5.203*60*0.2813 = 87.8 W for this 1 m wide fin.
     r = fins.rectangular_fin(25, 180, 1.0, 0.003, 0.03, theta_b=60, tip="adiabatic")
-    assert r.efficiency == pytest.approx(0.9729, abs=1e-3)
+    assert r.efficiency == pytest.approx(0.9730, abs=2e-4)
     assert r.q_fin == pytest.approx(87.8, rel=0.005)
     # convective tip must give slightly more heat than adiabatic, and the
     # corrected-length shortcut should agree with the exact convective tip
@@ -116,13 +116,35 @@ def test_hx_incropera_11_1_counterflow_size():
     assert s.F == pytest.approx(1.0)
 
 
-def test_hx_ntu_and_lmtd_agree():
-    # LMTD area = q/(U F LMTD) must equal NTU Cmin/U for every arrangement
+def test_hx_lmtd_ntu_counterflow_identity():
+    # For parallel and counterflow (F = 1 by definition) the LMTD area
+    # q/(U LMTD) and the NTU area NTU Cmin/U are two genuinely different
+    # computations of the same thing and must agree. For shell_tube_1_2 and
+    # cross_unmixed the same equality holds by construction of F, so it is
+    # not asserted here; the independent F check is the Bowman test below.
     Ch, Cc = 2000.0, 3000.0
-    for arr in hx.ARRANGEMENTS:
+    for arr in ("parallel", "counter"):
         s = hx.size(Ch, Cc, 150, 20, U=100, q=100e3, arrangement=arr)
-        A_lmtd = s.q / (100 * s.F * s.lmtd)
+        A_lmtd = s.q / (100 * s.lmtd)
         assert A_lmtd == pytest.approx(s.area, rel=1e-6), arr
+
+
+def test_hx_F_matches_bowman_closed_form():
+    # Independent check of the NTU-ratio F for shell_tube_1_2 against the
+    # Bowman closed form computed inline, across several operating points.
+    def bowman_F(Th_in, Th_out, Tc_in, Tc_out):
+        P = (Tc_out - Tc_in) / (Th_in - Tc_in)
+        R = (Th_in - Th_out) / (Tc_out - Tc_in)
+        S = np.sqrt(R ** 2 + 1)
+        if abs(R - 1) < 1e-9:
+            return S * P / ((1 - P) * np.log((2 - P * (R + 1 - S)) / (2 - P * (R + 1 + S))))
+        return (S / (R - 1)) * np.log((1 - P) / (1 - P * R)) / \
+            np.log((2 - P * (R + 1 - S)) / (2 - P * (R + 1 + S)))
+
+    for Th_in, Th_out, Tc_in, Tc_out in [(100, 60, 30, 40.2), (150, 90, 20, 50),
+                                          (200, 120, 40, 80), (90, 70, 30, 55)]:
+        F = hx.correction_factor_F(Th_in, Th_out, Tc_in, Tc_out, "shell_tube_1_2")
+        assert F == pytest.approx(bowman_F(Th_in, Th_out, Tc_in, Tc_out), abs=1e-6)
 
 
 def test_hx_rate_roundtrip():
@@ -185,10 +207,11 @@ def test_explicit_stability_check():
 
 
 def test_exact_solution_one_term_hand():
-    # Bi = 1: zeta1 = 0.8603, C1 = 1.1191 (Incropera Table 5.1).
-    # At Fo = 0.5, midplane theta* = 1.1191 exp(-0.7401*0.5) = 0.7727
+    # Bi = 1: zeta1 = 0.86033, C1 = 1.11912 (Incropera Table 5.1 carries
+    # 0.8603 and 1.1191). At Fo = 0.5, midplane
+    # theta* = 1.11912 exp(-0.86033^2 * 0.5) = 0.7730
     T = transient.plane_wall_exact(0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
-    assert float(T) == pytest.approx(0.7727, abs=5e-4)
+    assert float(T) == pytest.approx(0.7730, abs=2e-4)
 
 
 # -------------------------------------------------------------- convection
@@ -201,7 +224,7 @@ def test_dittus_boelter_hand():
 def test_gnielinski_hand():
     assert convection.gnielinski(1e4, 0.7) == pytest.approx(29.8, abs=0.1)
     with pytest.warns(convection.RangeWarning):
-        convection.gnielinski(1000, 0.7)
+        convection.gnielinski(2000, 0.7)
 
 
 def test_flat_plate_hand():

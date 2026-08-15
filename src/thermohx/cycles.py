@@ -8,10 +8,17 @@ points included so callers can draw T-s diagrams.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List
+from dataclasses import dataclass
+from typing import Dict
 
+import numpy as np
 from CoolProp.CoolProp import PropsSI
+
+
+def _check_eta(**etas):
+    for name, eta in etas.items():
+        if not 0 < eta <= 1:
+            raise ValueError(f"{name} must lie in (0, 1], got {eta}")
 
 
 @dataclass
@@ -30,6 +37,8 @@ class State:
 
 def _state(fluid, name, **kw) -> State:
     """Build a State from any two CoolProp inputs, e.g. P=..., T=... or P=..., S=..."""
+    if len(kw) != 2:
+        raise ValueError(f"exactly two property inputs required, got {len(kw)}")
     keys = list(kw.keys())
     a, b = keys[0].upper(), keys[1].upper()
     va, vb = kw[keys[0]], kw[keys[1]]
@@ -39,7 +48,7 @@ def _state(fluid, name, **kw) -> State:
     s = PropsSI("S", a, va, b, vb, fluid)
     try:
         x = PropsSI("Q", a, va, b, vb, fluid)
-    except Exception:
+    except ValueError:
         x = -1.0
     if not (0.0 <= x <= 1.0):
         x = -1.0
@@ -59,6 +68,20 @@ def _compress(fluid, name, s_in, h_in, p_out, eta):
     return _state(fluid, name, P=p_out, H=h_out)
 
 
+def _check_rankine_inputs(p_boiler, T_turbine_in, p_condenser, fluid):
+    if p_condenser <= 0 or p_boiler <= p_condenser:
+        raise ValueError(f"need 0 < p_condenser < p_boiler, got "
+                         f"p_condenser = {p_condenser}, p_boiler = {p_boiler}")
+    p_crit = PropsSI("Pcrit", fluid)
+    if p_boiler < p_crit:
+        Tsat = PropsSI("T", "P", p_boiler, "Q", 1, fluid)
+        if T_turbine_in <= Tsat:
+            raise ValueError(
+                f"turbine inlet T = {T_turbine_in:.2f} K is at or below saturation "
+                f"({Tsat:.2f} K) at p_boiler = {p_boiler:.3g} Pa: the working fluid "
+                "would enter the turbine as liquid or a two phase mixture")
+
+
 # ---------------------------------------------------------------------------
 # Rankine
 # ---------------------------------------------------------------------------
@@ -72,6 +95,8 @@ def rankine(p_boiler, T_turbine_in, p_condenser, eta_turbine=1.0, eta_pump=1.0,
     600 C, 10 kPa gives eta_th = 43.0 percent (hand: h3 = 3583.1, h4 = 2115.3,
     w_pump = 15.1 kJ/kg, w_net = 1452.7 kJ/kg, q_in = 3376.2 kJ/kg).
     """
+    _check_eta(eta_turbine=eta_turbine, eta_pump=eta_pump)
+    _check_rankine_inputs(p_boiler, T_turbine_in, p_condenser, fluid)
     s1 = _state(fluid, "1", P=p_condenser, Q=0)
     s2 = _compress(fluid, "2", s1.s, s1.h, p_boiler, eta_pump)
     s3 = _state(fluid, "3", P=p_boiler, T=T_turbine_in)
@@ -94,6 +119,10 @@ def rankine_reheat(p_boiler, T_turbine_in, p_reheat, T_reheat, p_condenser,
     Validation (Cengel Ex 10-4): 15 MPa, 600 C, reheat 4 MPa to 600 C,
     10 kPa: eta_th = 45.0 percent, exit quality 0.896.
     """
+    _check_eta(eta_turbine=eta_turbine, eta_pump=eta_pump)
+    _check_rankine_inputs(p_boiler, T_turbine_in, p_condenser, fluid)
+    if not p_condenser < p_reheat < p_boiler:
+        raise ValueError("need p_condenser < p_reheat < p_boiler")
     s1 = _state(fluid, "1", P=p_condenser, Q=0)
     s2 = _compress(fluid, "2", s1.s, s1.h, p_boiler, eta_pump)
     s3 = _state(fluid, "3", P=p_boiler, T=T_turbine_in)
@@ -120,6 +149,10 @@ def rankine_regenerative_open_fwh(p_boiler, T_turbine_in, p_fwh, p_condenser,
     Validation (Cengel Ex 10-5): 15 MPa, 600 C, FWH at 1.2 MPa, 10 kPa:
     y = 0.2270, eta_th = 46.3 percent.
     """
+    _check_eta(eta_turbine=eta_turbine, eta_pump=eta_pump)
+    _check_rankine_inputs(p_boiler, T_turbine_in, p_condenser, fluid)
+    if not p_condenser < p_fwh < p_boiler:
+        raise ValueError("need p_condenser < p_fwh < p_boiler")
     s1 = _state(fluid, "1", P=p_condenser, Q=0)
     s2 = _compress(fluid, "2", s1.s, s1.h, p_fwh, eta_pump)
     s3 = _state(fluid, "3", P=p_fwh, Q=0)
@@ -138,6 +171,43 @@ def rankine_regenerative_open_fwh(p_boiler, T_turbine_in, p_fwh, p_condenser,
                 bwr=w_pump / w_turb, x_turbine_exit=s7.x)
 
 
+def rankine_reheat_open_fwh(p_boiler, T_turbine_in, p_reheat, T_reheat, p_fwh,
+                            p_condenser, eta_turbine=1.0, eta_pump=1.0,
+                            fluid="Water") -> Dict:
+    """Rankine with one reheat stage and one open feedwater heater, the
+    layout of a utility scale steam plant (Cengel Ex 10-6 layout).
+
+    States: 1 cond sat liq, 2 pump I exit at p_fwh, 3 FWH exit sat liq,
+    4 pump II exit at p_boiler, 5 HP turbine inlet, 6 HP exit at p_reheat,
+    7 LP inlet after reheat, 8 bleed extraction at p_fwh, 9 LP exit.
+    Bleed fraction y from the FWH energy balance: y = (h3 - h2)/(h8 - h2).
+    Requires p_condenser < p_fwh < p_reheat < p_boiler.
+    """
+    _check_eta(eta_turbine=eta_turbine, eta_pump=eta_pump)
+    _check_rankine_inputs(p_boiler, T_turbine_in, p_condenser, fluid)
+    if not p_condenser < p_fwh < p_reheat < p_boiler:
+        raise ValueError("need p_condenser < p_fwh < p_reheat < p_boiler")
+    s1 = _state(fluid, "1", P=p_condenser, Q=0)
+    s2 = _compress(fluid, "2", s1.s, s1.h, p_fwh, eta_pump)
+    s3 = _state(fluid, "3", P=p_fwh, Q=0)
+    s4 = _compress(fluid, "4", s3.s, s3.h, p_boiler, eta_pump)
+    s5 = _state(fluid, "5", P=p_boiler, T=T_turbine_in)
+    s6 = _expand(fluid, "6", s5.s, s5.h, p_reheat, eta_turbine)
+    s7 = _state(fluid, "7", P=p_reheat, T=T_reheat)
+    s8 = _expand(fluid, "8", s7.s, s7.h, p_fwh, eta_turbine)
+    s9 = _expand(fluid, "9", s8.s, s8.h, p_condenser, eta_turbine)
+    y = (s3.h - s2.h) / (s8.h - s2.h)
+    q_in = (s5.h - s4.h) + (s7.h - s6.h)
+    q_out = (1 - y) * (s9.h - s1.h)
+    w_turb = (s5.h - s6.h) + (s7.h - s8.h) + (1 - y) * (s8.h - s9.h)
+    w_pump = (1 - y) * (s2.h - s1.h) + (s4.h - s3.h)
+    w_net = w_turb - w_pump
+    return dict(states=[s1, s2, s3, s4, s5, s6, s7, s8, s9], y=y,
+                w_turbine=w_turb, w_pump=w_pump, w_net=w_net, q_in=q_in,
+                q_out=q_out, eta_th=w_net / q_in, bwr=w_pump / w_turb,
+                x_turbine_exit=s9.x)
+
+
 # ---------------------------------------------------------------------------
 # Brayton
 # ---------------------------------------------------------------------------
@@ -153,6 +223,16 @@ def brayton(T1, p1, pressure_ratio, T3, eta_compressor=1.0, eta_turbine=1.0,
     Ex 9-6 with eta_c = 0.80, eta_t = 0.85: eta_th = 26.6 percent.
     Ex 9-7 adding a regenerator of effectiveness 0.80: eta_th = 36.9 percent.
     """
+    _check_eta(eta_compressor=eta_compressor, eta_turbine=eta_turbine)
+    if p1 <= 0 or T1 <= 0:
+        raise ValueError("T1 and p1 must be positive")
+    if pressure_ratio <= 1:
+        raise ValueError(f"pressure_ratio must exceed 1, got {pressure_ratio}")
+    if T3 <= T1:
+        raise ValueError("turbine inlet T3 must exceed compressor inlet T1")
+    if not 0 <= regenerator_effectiveness <= 1:
+        raise ValueError(f"regenerator_effectiveness must lie in [0, 1], "
+                         f"got {regenerator_effectiveness}")
     p2 = p1 * pressure_ratio
     s1 = _state(fluid, "1", P=p1, T=T1)
     s2 = _compress(fluid, "2", s1.s, s1.h, p2, eta_compressor)
@@ -163,6 +243,11 @@ def brayton(T1, p1, pressure_ratio, T3, eta_compressor=1.0, eta_turbine=1.0,
     states = [s1, s2, s3, s4]
     h_in_combustor = s2.h
     if regenerator_effectiveness > 0:
+        if s4.h <= s2.h:
+            raise ValueError(
+                "regenerator cannot transfer heat: the turbine exhaust "
+                f"(T4 = {s4.T:.1f} K) is not hotter than the compressor exit "
+                f"(T2 = {s2.T:.1f} K); run with regenerator_effectiveness=0")
         h5 = s2.h + regenerator_effectiveness * (s4.h - s2.h)
         s5 = _state(fluid, "5", P=p2, H=h5)
         states.append(s5)
@@ -186,6 +271,14 @@ def vapor_compression(p_evap, p_cond, eta_compressor=1.0, superheat_K=0.0,
     q_L = 143.7 kJ/kg, w_in = 36.2 kJ/kg, COP_R = 3.97 (table values,
     CoolProp gives about 3.97 as well).
     """
+    _check_eta(eta_compressor=eta_compressor)
+    if p_evap <= 0 or p_cond <= p_evap:
+        raise ValueError(f"need 0 < p_evap < p_cond, got p_evap = {p_evap}, "
+                         f"p_cond = {p_cond}")
+    if superheat_K < 0:
+        raise ValueError(f"superheat_K must be nonnegative, got {superheat_K}")
+    if subcool_K < 0:
+        raise ValueError(f"subcool_K must be nonnegative, got {subcool_K}")
     if superheat_K > 0:
         Tsat = PropsSI("T", "P", p_evap, "Q", 1, fluid)
         s1 = _state(fluid, "1", P=p_evap, T=Tsat + superheat_K)
@@ -207,7 +300,6 @@ def vapor_compression(p_evap, p_cond, eta_compressor=1.0, superheat_K=0.0,
 
 def saturation_dome(fluid="Water", n=200):
     """Return (s_liq, T_liq, s_vap, T_vap) arrays for plotting a T-s dome."""
-    import numpy as np
     Tt = PropsSI("Ttriple", fluid) + 0.5
     Tc = PropsSI("Tcrit", fluid) - 0.05
     T = np.linspace(Tt, Tc, n)

@@ -4,10 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thermohx"
-version = "0.1.0"
+version = "0.2.0"
 description = "Validated thermodynamics and heat transfer solvers (cycles, fins, heat exchangers, transient conduction, convection)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Laela Zorana", email = "zoranalaela9@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = ["numpy", "scipy", "matplotlib", "CoolProp"]
+dependencies = ["numpy", "scipy", "matplotlib", "CoolProp", "PyYAML"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/LaelaZorana/thermo-heat-transfer-solvers"
 
 [tool.setuptools.packages.find]
 where = ["src"]

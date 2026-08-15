@@ -1,6 +1,6 @@
 # thermohx: validated thermodynamics and heat transfer solvers
 
-A correlation you cannot trace back to a textbook number is a liability. So this small Python library covers the core of an undergraduate thermo and heat transfer sequence, meaning power and refrigeration cycles on real fluid data through CoolProp, extended surfaces, heat exchanger sizing and rating, transient conduction with lumped and finite difference solutions checked against the exact series, and convection correlations that warn you when you leave their fitted range. Every function carries a textbook validation case in its docstring, and the test suite checks those numbers.
+A correlation you cannot trace back to a textbook number is a liability, so this library keeps its references close. It covers the core of an undergraduate thermo and heat transfer sequence. Power and refrigeration cycles run on real fluid data through CoolProp. Extended surfaces, heat exchanger sizing and rating, and transient conduction come with lumped and finite difference solutions checked against the exact series. Convection correlations warn you when you leave their fitted range and raise on inputs that make no physical sense. Every module carries at least one textbook validation case in its docstrings, and the test suite checks those numbers.
 
 ![Rankine T-s](figures/rankine_ts.png)
 
@@ -8,11 +8,13 @@ A correlation you cannot trace back to a textbook number is a liability. So this
 
 | Module | Functions | Notes |
 |---|---|---|
-| `thermohx.cycles` | `rankine`, `rankine_reheat`, `rankine_regenerative_open_fwh`, `brayton`, `vapor_compression`, `saturation_dome` | CoolProp properties, isentropic efficiencies for turbine, pump, compressor; regenerator effectiveness for Brayton; superheat and subcooling for the refrigeration cycle. Returns eta_th, back-work ratio, specific work, COP, and the state points. |
-| `thermohx.fins` | `rectangular_fin`, `pin_fin`, `efficiency_curve` | Adiabatic tip, exact convective tip, and corrected-length tip. Returns efficiency, effectiveness, heat rate, m, mL. |
-| `thermohx.hx` | `lmtd`, `correction_factor_F`, `effectiveness`, `ntu_from_effectiveness`, `size`, `rate` | Parallel, counterflow, shell and tube 1-2, crossflow both unmixed. `size` returns area from a duty; `rate` returns outlets from UA. |
-| `thermohx.transient` | `lumped_capacitance`, `lumped_time_to_reach`, `plane_wall_exact`, `plane_wall_fdm` | Biot check on lumped results; explicit FDM raises on Fo(1+Bi) > 0.5; implicit uses a banded solve. |
-| `thermohx.convection` | `dittus_boelter`, `gnielinski`, `petukhov_friction`, `churchill_chu_vertical_plate`, `churchill_chu_horizontal_cylinder`, `flat_plate_average`, `flat_plate_local` | Each emits a `RangeWarning` outside its fitted range. |
+| `thermohx.cycles` | `rankine`, `rankine_reheat`, `rankine_regenerative_open_fwh`, `rankine_reheat_open_fwh`, `brayton`, `vapor_compression`, `saturation_dome` | CoolProp properties with isentropic efficiencies for turbine, pump and compressor, regenerator effectiveness for Brayton, and superheat and subcooling for the refrigeration cycle. Returns eta_th, back work ratio, specific work, COP and the state points. Impossible inputs such as a reversed pressure order, an efficiency outside its bounds, a compressed liquid at the turbine inlet or a regenerator asked to move heat the wrong way raise a ValueError with a plain message. |
+| `thermohx.fins` | `rectangular_fin`, `pin_fin`, `efficiency_curve` | Adiabatic tip, exact convective tip and corrected length tip. Returns efficiency, effectiveness, heat rate, m and mL. Degenerate geometry raises. |
+| `thermohx.hx` | `lmtd`, `correction_factor_F`, `effectiveness`, `ntu_from_effectiveness`, `max_effectiveness`, `size`, `rate` | Parallel, counterflow, shell and tube 1 to 2, and crossflow with both streams unmixed. `size` returns area from a duty and `rate` returns outlets from UA. Requesting an effectiveness beyond the arrangement limit raises. |
+| `thermohx.transient` | `lumped_capacitance`, `lumped_time_to_reach`, `plane_wall_exact`, `plane_wall_fdm` | Lumped results carry a Biot validity flag and `lumped_time_to_reach` checks Biot when you pass k. The explicit FDM raises when Fo times one plus Bi exceeds 0.5 and the implicit scheme uses a banded solve. The series solution handles Bi of zero and infinity and warns when one term is used below Fo of 0.2. |
+| `thermohx.convection` | `dittus_boelter`, `gnielinski`, `petukhov_friction`, `churchill_chu_vertical_plate`, `churchill_chu_horizontal_cylinder`, `flat_plate_average`, `flat_plate_local` | Each raises on nonpositive Re, Ra or Pr and emits a `RangeWarning` outside its fitted range. |
+| `thermohx.properties` | `load_table`, `prop`, `properties` | Interpolates the tables in `data/fluids/` as a CoolProp free fallback, verified against CoolProp in the tests. |
+| `thermohx.specs` | `load_spec`, `rate_hx_spec`, `run_cycle_spec` | Loads and runs the YAML equipment specs in `data/`. |
 
 Units are SI throughout, so Pa, K, J/kg and W/m2 K. Cycle temperatures are in kelvin, while the heat exchanger and transient functions accept any consistent temperature scale.
 
@@ -26,7 +28,7 @@ print(s.area, s.lmtd, s.NTU)
 
 ## Validation table
 
-Reference values were recomputed by hand from steam, air, and R134a tables before comparing, and because the code uses CoolProp, small differences from the tables are expected.
+Reference values were recomputed by hand from steam, air and R134a tables before comparing, and because the code uses CoolProp, small differences from the tables are expected.
 
 | Case | Source | Reference | thermohx | Test tolerance |
 |---|---|---|---|---|
@@ -38,38 +40,46 @@ Reference values were recomputed by hand from steam, air, and R134a tables befor
 | Brayton eta_c 0.80, eta_t 0.85 | Cengel Ex 9-6 | eta = 26.6 percent | 26.61 percent | 1 percent |
 | Brayton with 80 percent regenerator | Cengel Ex 9-7 | eta = 36.9 percent | 36.87 percent | 1 percent |
 | R134a 0.14 to 0.8 MPa | Cengel Ex 11-1 | COP = 3.97, q_L = 143.7, w = 36.2 kJ/kg | 3.968, 143.7, 36.2 | 1 percent |
-| Rectangular fin, k 180, t 3 mm, L 30 mm, h 25 | hand (Incropera Table 3.4) | eta = 0.9729, q = 87.8 W/m | 0.9729, 87.8 | 0.5 percent |
+| Rectangular fin, k 180, t 3 mm, L 30 mm, h 25 | hand, from the Incropera Table 3.4 forms | eta = 0.9730, q = 87.8 W | 0.9730, 87.8 | 2e-4 on eta |
 | Counterflow oil cooler | Incropera Ex 11.1 | LMTD 43.2, A = 5.18 m2, L = 65.9 m | 43.20, 5.18, 65.9 | 0.5 percent |
-| Shell and tube F, P 0.146, R 3.92 | Bowman closed form | F = 0.9615 | 0.9615 | 5e-4 |
+| Shell and tube F, four operating points | Bowman closed form, inline | F to 1e-6 | agrees | 1e-6 |
 | Lumped thermocouple, D 1 mm | Cengel HT Ex 4-1 | Bi = 0.001, tau = 2.16 s, t99 = 9.9 s | 0.001, 2.159, 9.94 | 1 percent |
-| Plane wall Bi = 2, Fo = 1, explicit FDM | vs one-term exact | max relative error | 0.03 percent | 1 percent |
-| Plane wall Bi = 2, Fo = 1, implicit FDM | vs one-term exact | max relative error | 0.08 percent | 1 percent |
+| Plane wall Bi = 2, Fo = 1, explicit FDM | vs series solution | max relative error | 0.02 percent | 1 percent |
+| Plane wall Bi = 2, Fo = 1, implicit FDM | vs series solution | max relative error | 0.08 percent | 1 percent |
 | Dittus-Boelter Re 1e4, Pr 0.7 | hand | Nu = 31.6 | 31.61 | 0.05 |
 | Gnielinski Re 1e4, Pr 0.7 | hand | Nu = 29.8 | 29.82 | 0.1 |
 | Flat plate Re_L 1e5 and 1e6, Pr 0.7 | hand | Nu = 186.4 and 1299 | 186.4, 1299 | 0.5 percent |
 | Churchill-Chu Ra 1e9, Pr 0.7 | hand | Nu = 122.6 | 122.6 | 0.3 |
 
-Also checked: LMTD area and NTU area agree to 1e-6 for all four arrangements, sizing then rating round trips the outlet temperatures, the inverse eps-NTU relations recover NTU, and the explicit solver raises on an unstable step.
+For parallel and counterflow the LMTD area and the NTU area are two different computations of the same quantity and the tests hold them to 1e-6. For the shell and tube and crossflow arrangements that equality holds by construction of F, so the independent check there is the Bowman closed form comparison across four operating points. The suite also verifies that sizing then rating round trips the outlet temperatures, that the inverse eps NTU relations recover NTU, that the explicit solver raises on an unstable step, and that every bad input listed in `tests/test_validation.py` raises rather than returning a complex or impossible number.
+
+## Data files
+
+The `data/` directory holds property tables for air and water, three representative heat exchanger specs and two representative plant specs, all synthetic and documented in `data/README.md`. The property tables back a CoolProp free interpolation path in `thermohx.properties`, and the tests pin them to CoolProp within stated tolerances. Two examples consume the specs. `examples/rate_hx_specs.py` rates the three heat exchangers and writes `figures/hx_ratings.txt`. `examples/cycle_reports.py` runs the 500 MW class steam plant and the recuperated 5 MW gas turbine, writes `figures/cycle_reports.txt` and draws a T-s figure for each.
 
 ## How to run
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e .           # or: pip install numpy scipy matplotlib CoolProp pytest
-pytest -q                  # 24 tests
+pip install -e ".[test]"
+pytest -q                  # 59 tests
 python examples/rankine_ts.py
 python examples/fin_curves.py
 python examples/ntu_curves.py
 python examples/transient_wall.py
+python examples/rate_hx_specs.py
+python examples/cycle_reports.py
 ```
 
-Figures are written to `figures/`: `rankine_ts.png`, `fin_efficiency.png`, `ntu_curves.png`, `transient_wall.png`.
+Figures and reports land in `figures/`: `rankine_ts.png`, `fin_efficiency.png`, `ntu_curves.png`, `transient_wall.png`, `cycle_steam_ts.png`, `cycle_gasturbine_ts.png`, `hx_ratings.txt` and `cycle_reports.txt`.
 
 ## Layout
 
 ```
-src/thermohx/   cycles.py fins.py hx.py transient.py convection.py
-examples/       one script per figure
-figures/        generated plots
-tests/          test_all.py
+src/thermohx/   cycles.py fins.py hx.py transient.py convection.py properties.py specs.py
+data/           fluids/ heat_exchangers/ cycles/ (see data/README.md)
+examples/       one script per figure or report
+figures/        generated plots and reports
+tests/          test_all.py test_validation.py test_data.py
+LICENSE         MIT
 ```

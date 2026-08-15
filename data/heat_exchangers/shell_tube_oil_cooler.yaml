@@ -1,0 +1,17 @@
+# Representative lube oil cooler, one shell pass and two tube passes, oil
+# on the shell side and cooling water in the tubes. Oil cp is given
+# directly because the property tables cover only air and water. Synthetic
+# but consistent with a medium size industrial gear unit.
+name: Shell and tube lube oil cooler
+arrangement: shell_tube_1_2
+U_W_m2K: 350.0
+area_m2: 12.0
+hot:
+  fluid: oil
+  cp_J_kgK: 2100.0
+  m_dot_kg_s: 3.0
+  T_in_K: 355.0
+cold:
+  fluid: water
+  m_dot_kg_s: 2.0
+  T_in_K: 300.0

@@ -4,11 +4,9 @@ Fin efficiency eta_f = q_fin / (h A_fin theta_b), effectiveness
 eps_f = q_fin / (h A_c,base theta_b). Adiabatic tip and convective tip
 formulas follow Incropera Table 3.4.
 
-Hand check used in tests: for m L = 1 with an adiabatic tip,
-eta_f = tanh(1)/1 = 0.7616. Incropera Example 3.9: aluminum pin fin,
-k = 240 W/m K, D = 5 mm, L = 50 mm ... but that example is about an array,
-so tests here use the closed forms directly, plus a rectangular fin case
-matching Cengel Ex 3-13 style numbers (see tests).
+Hand checks used in tests: for m L = 1 with an adiabatic tip,
+eta_f = tanh(1)/1 = 0.7616, plus a rectangular aluminum fin case worked
+by hand from the Table 3.4 closed forms (see tests).
 """
 from __future__ import annotations
 
@@ -29,6 +27,8 @@ class FinResult:
 
 
 def _core(h, k, P, Ac, L, theta_b, tip):
+    if h <= 0 or k <= 0 or L <= 0 or P <= 0 or Ac <= 0:
+        raise ValueError("h, k, L, P and Ac must all be positive")
     m = np.sqrt(h * P / (k * Ac))
     if tip == "adiabatic":
         Lc = L
@@ -72,6 +72,8 @@ def pin_fin(h, k, D, L, theta_b=1.0, tip="adiabatic") -> FinResult:
 
 
 def efficiency_curve(mL):
-    """Adiabatic-tip fin efficiency tanh(mL)/(mL), vectorised."""
+    """Adiabatic-tip fin efficiency tanh(mL)/(mL), vectorised.
+    Returns 1.0 at mL = 0 and nan for negative mL (a sign error upstream)."""
     mL = np.asarray(mL, dtype=float)
-    return np.where(mL > 0, np.tanh(mL) / np.where(mL > 0, mL, 1.0), 1.0)
+    out = np.where(mL > 0, np.tanh(mL) / np.where(mL > 0, mL, 1.0), 1.0)
+    return np.where(mL < 0, np.nan, out)

@@ -1,0 +1,10 @@
+500 MW class steam plant with reheat and one open FWH
+  eta_th = 44.25 percent, bwr = 0.014
+  w_net = 1442.8 kJ/kg, q_in = 3260.3 kJ/kg
+  bleed fraction y = 0.1785, turbine exit quality = 0.921
+  net power = 500 MW, m_dot = 346.6 kg/s, heat input = 1130 MW
+
+Recuperated 5 MW gas turbine
+  eta_th = 47.66 percent, bwr = 0.490
+  w_net = 320.1 kJ/kg, q_in = 671.7 kJ/kg
+  net power = 5 MW, m_dot = 15.6 kg/s, heat input = 10 MW

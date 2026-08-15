@@ -11,7 +11,7 @@ for ax, arr in zip(axes.flat, hx.ARRANGEMENTS):
     for Cr in (0, 0.25, 0.5, 0.75, 1.0):
         ax.plot(NTU, [hx.effectiveness(n, Cr, arr) for n in NTU], label=f"Cr = {Cr}")
     ax.set_title(arr); ax.grid(alpha=0.3)
-axes[0, 0].legend(); 
+axes[0, 0].legend()
 for a in axes[1]: a.set_xlabel("NTU")
 for a in axes[:, 0]: a.set_ylabel("effectiveness")
 fig.tight_layout(); fig.savefig(os.path.join(FIG, "ntu_curves.png"), dpi=150)

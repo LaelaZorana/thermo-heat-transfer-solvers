@@ -1,0 +1,16 @@
+# Representative 500 MW class subcritical steam plant: 16.5 MPa and 565 C
+# at the throttle, single reheat to 565 C at 4 MPa, one open feedwater
+# heater at 0.7 MPa, condenser at 8 kPa. Turbine and pump efficiencies are
+# typical of a utility unit. Synthetic, not a specific plant.
+name: 500 MW class steam plant with reheat and one open FWH
+cycle: rankine_reheat_open_fwh
+inputs:
+  p_boiler: 16.5e6
+  T_turbine_in: 838.15
+  p_reheat: 4.0e6
+  T_reheat: 838.15
+  p_fwh: 0.7e6
+  p_condenser: 8.0e3
+  eta_turbine: 0.90
+  eta_pump: 0.85
+net_power_W: 500.0e6

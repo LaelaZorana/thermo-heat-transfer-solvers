@@ -1,0 +1,5 @@
+exchanger                          arrangement       q [kW]    eps    NTU  Th_out [K]  Tc_out [K]
+-------------------------------------------------------------------------------------------------
+Brazed plate water to water        counter            165.4  0.528  1.117       311.6       314.4
+Car radiator, crossflow core       cross_unmixed       55.9  0.370  0.536       356.9       330.2
+Shell and tube lube oil cooler     shell_tube_1_2     140.7  0.406  0.667       332.7       316.8

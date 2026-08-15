@@ -1,0 +1,16 @@
+# Representative brazed plate unit for hydronic heating, water to water,
+# counterflow channels. Plate exchangers reach high U because both films
+# are turbulent liquid. Synthetic but consistent with catalog data for a
+# unit of about forty plates.
+name: Brazed plate water to water
+arrangement: counter
+U_W_m2K: 3500.0
+area_m2: 2.0
+hot:
+  fluid: water
+  m_dot_kg_s: 1.5
+  T_in_K: 338.0
+cold:
+  fluid: water
+  m_dot_kg_s: 1.5
+  T_in_K: 288.0

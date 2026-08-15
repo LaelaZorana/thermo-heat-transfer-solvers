@@ -1,0 +1,16 @@
+# Representative passenger car radiator, both streams treated as unmixed
+# crossflow. Coolant modeled as water; a glycol mix would lower cp by
+# roughly 15 percent. U is referenced to the air side area of the louvered
+# fin core. Synthetic but sized to match a mid size sedan at highway speed.
+name: Car radiator, crossflow core
+arrangement: cross_unmixed
+U_W_m2K: 90.0
+area_m2: 15.0
+hot:
+  fluid: water
+  m_dot_kg_s: 1.2
+  T_in_K: 368.0
+cold:
+  fluid: air
+  m_dot_kg_s: 2.5
+  T_in_K: 308.0

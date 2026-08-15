@@ -1,0 +1,17 @@
+# Representative recuperated industrial gas turbine of about 5 MW, in the
+# spirit of small recuperated machines: pressure ratio near 10, turbine
+# inlet 1400 K, recuperator effectiveness 0.85. Synthetic, not a specific
+# engine. The air standard model carries no duct or combustor pressure
+# losses, so the computed efficiency sits several points above what a real
+# machine of this class achieves.
+name: Recuperated 5 MW gas turbine
+cycle: brayton
+inputs:
+  T1: 288.15
+  p1: 101325.0
+  pressure_ratio: 9.9
+  T3: 1400.0
+  eta_compressor: 0.87
+  eta_turbine: 0.89
+  regenerator_effectiveness: 0.85
+net_power_W: 5.0e6
