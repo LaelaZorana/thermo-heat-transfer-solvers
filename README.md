@@ -1,12 +1,6 @@
 # thermohx: validated thermodynamics and heat transfer solvers
 
-A small, tested Python library covering the core of an undergraduate thermo and
-heat transfer sequence: power and refrigeration cycles on real fluid data
-(CoolProp), extended surfaces, heat exchanger sizing and rating, transient
-conduction (lumped and finite difference against the exact series), and
-convection correlations with validity warnings. Every function carries a
-textbook validation case in its docstring, and the test suite checks those
-numbers.
+A correlation you cannot trace back to a textbook number is a liability. So this small Python library covers the core of an undergraduate thermo and heat transfer sequence, meaning power and refrigeration cycles on real fluid data through CoolProp, extended surfaces, heat exchanger sizing and rating, transient conduction with lumped and finite difference solutions checked against the exact series, and convection correlations that warn you when you leave their fitted range. Every function carries a textbook validation case in its docstring, and the test suite checks those numbers.
 
 ![Rankine T-s](figures/rankine_ts.png)
 
@@ -20,9 +14,7 @@ numbers.
 | `thermohx.transient` | `lumped_capacitance`, `lumped_time_to_reach`, `plane_wall_exact`, `plane_wall_fdm` | Biot check on lumped results; explicit FDM raises on Fo(1+Bi) > 0.5; implicit uses a banded solve. |
 | `thermohx.convection` | `dittus_boelter`, `gnielinski`, `petukhov_friction`, `churchill_chu_vertical_plate`, `churchill_chu_horizontal_cylinder`, `flat_plate_average`, `flat_plate_local` | Each emits a `RangeWarning` outside its fitted range. |
 
-Units are SI throughout (Pa, K, J/kg, W/m2 K). Cycle temperatures are in
-kelvin; heat exchanger and transient functions accept any consistent
-temperature scale.
+Units are SI throughout, so Pa, K, J/kg and W/m2 K. Cycle temperatures are in kelvin, while the heat exchanger and transient functions accept any consistent temperature scale.
 
 ```python
 from thermohx import cycles, hx
@@ -34,9 +26,7 @@ print(s.area, s.lmtd, s.NTU)
 
 ## Validation table
 
-Reference values were recomputed by hand from steam, air, and R134a tables
-before comparing; the code uses CoolProp so small differences from the tables
-are expected.
+Reference values were recomputed by hand from steam, air, and R134a tables before comparing, and because the code uses CoolProp, small differences from the tables are expected.
 
 | Case | Source | Reference | thermohx | Test tolerance |
 |---|---|---|---|---|
@@ -59,9 +49,7 @@ are expected.
 | Flat plate Re_L 1e5 and 1e6, Pr 0.7 | hand | Nu = 186.4 and 1299 | 186.4, 1299 | 0.5 percent |
 | Churchill-Chu Ra 1e9, Pr 0.7 | hand | Nu = 122.6 | 122.6 | 0.3 |
 
-Also checked: LMTD area and NTU area agree to 1e-6 for all four arrangements,
-sizing then rating round-trips the outlet temperatures, inverse eps-NTU
-relations recover NTU, and the explicit solver raises on an unstable step.
+Also checked: LMTD area and NTU area agree to 1e-6 for all four arrangements, sizing then rating round trips the outlet temperatures, the inverse eps-NTU relations recover NTU, and the explicit solver raises on an unstable step.
 
 ## How to run
 
@@ -75,8 +63,7 @@ python examples/ntu_curves.py
 python examples/transient_wall.py
 ```
 
-Figures are written to `figures/`: `rankine_ts.png`, `fin_efficiency.png`,
-`ntu_curves.png`, `transient_wall.png`.
+Figures are written to `figures/`: `rankine_ts.png`, `fin_efficiency.png`, `ntu_curves.png`, `transient_wall.png`.
 
 ## Layout
 
